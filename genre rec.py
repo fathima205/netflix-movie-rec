@@ -13,12 +13,15 @@ st.set_page_config(
 st.title("🎬 OTT Movie Recommendation Prototype")
 st.write("Filter content by genre, director, or age/content rating.")
 
+# Title Search Bar
+search_query = st.text_input("🔍 Search by Movie Title", placeholder="Type a movie title...")
+
 # ---------------------------------------------------------
 # 2. Data Loading Function (Cached for Performance)
 # ---------------------------------------------------------
 @st.cache_data
 def load_data():
-    file_path = r"C:\Users\fathi\Downloads\netflix_titles.csv\netflix_titles.csv"
+    file_path = "netflix_titles.csv"
     
     try:
         df = pd.read_csv(file_path)
@@ -68,12 +71,18 @@ selected_rating = st.sidebar.selectbox("Select Content Rating", all_ratings)
 director_query = st.sidebar.text_input("Director Name (optional)", value="")
 
 # Number of recommendations slider
-num_results = st.sidebar.slider("Number of Recommendations", min_value=1, max_value=20, value=5)
+num_results = st.sidebar.slider("Number of Recommendations", min_value=1, max_value=20, value=6)
 
 # ---------------------------------------------------------
 # 4. Recommendation / Filtering Logic
 # ---------------------------------------------------------
 filtered_df = df_movies.copy()
+
+# Filter by Title Search
+if search_query.strip():
+    filtered_df = filtered_df[
+        filtered_df['title'].str.contains(search_query, case=False, na=False)
+    ]
 
 # Filter by Genre
 if selected_genre != "All Genres":
@@ -96,13 +105,27 @@ if director_query.strip():
 # ---------------------------------------------------------
 st.subheader("Recommended Movies")
 
+# Metrics Display
+col1, col2, col3 = st.columns(3)
+col1.metric("Total Movies", len(df_movies))
+col2.metric("Matching Results", len(filtered_df))
+col3.metric("Current Genre", selected_genre)
+st.divider()
+
 if not filtered_df.empty:
-    display_df = filtered_df[['title', 'director', 'listed_in', 'rating', 'release_year']].head(num_results)
+    top_movies = filtered_df.head(num_results)
     
-    # Format column names for display
-    display_df.columns = ['Title', 'Director', 'Genres', 'Rating', 'Release Year']
-    
-    st.dataframe(display_df, width="stretch", hide_index=True)
-    st.success(f"Found {len(filtered_df)} total matching title(s). Displaying top {len(display_df)}.")
+    # Grid layout with 3 cards per row
+    cols = st.columns(3)
+    for index, (_, row) in enumerate(top_movies.iterrows()):
+        with cols[index % 3]:
+            st.image("https://via.placeholder.com/300x400?text=Movie+Poster", use_container_width=True)
+            st.subheader(row['title'])
+            st.caption(f"⭐ **Rating:** {row['rating']} | 📅 **Year:** {row['release_year']}")
+            st.markdown(f"**Genres:** {row['listed_in']}")
+            st.markdown(f"**Director:** {row['director']}")
+            st.divider()
+            
+    st.success(f"Found {len(filtered_df)} total matching title(s). Displaying top {len(top_movies)}.")
 else:
     st.warning("No movies found matching your selected criteria. Try broadening your filter parameters.")
